@@ -88,6 +88,48 @@ def new_board():
     return board
 
 
+def score_calculation(board):
+    # Ref: https://codemyroad.wordpress.com/2013/04/14/tetris-ai-the-near-perfect-player/
+    score = 0
+    height_sum = 0
+    hole_sum = 0
+    bumpiness_sum = 0
+    clear_sum = 0
+
+    # Height_sum
+    for j in range(len(board[0])):
+        height_col = 22
+        for i in range(len(board)):
+            if board[i][j] == 0:
+                height_col -= 1
+            else:
+                break
+        height_sum += height_col
+
+    # Hole_sum
+
+    # Bumpiness_sum
+
+    # Clear_sum
+    for j in range(len(board[0])):
+        c_flag = True
+        for i in range (len(board)):
+            if board[i][j] != 0:
+                continue
+            else:
+                c_flag = False
+                break
+        if c_flag:
+            clear_sum += 1
+    clear_sum -= 1
+
+    coeff = [-0.510066, 0.760666, -0.35665, -0.184483]
+
+    score = coeff[0] * height_sum + coeff[1] * clear_sum + coeff[2] * hole_sum + coeff[3] * bumpiness_sum
+
+    return score
+
+
 class TetrisApp(object):
     # Game Window Initialization
     def __init__(self):
@@ -254,21 +296,6 @@ class TetrisApp(object):
             self.init_game()
             self.gameover = False
 
-    def score_calculation(self, board):
-        score = 0
-        height_sum = 0
-        hole_sum = 0
-        bumpiness_sum = 0
-        clear_sum = 0
-
-        for i in range(len(board)):
-            height_col = 0
-            for j in range(len(board[0])-2, -1, -1):
-                if board[i][j] != 0:
-                    height_col += 1
-            height_sum += height_col
-        return height_sum - 9
-
     def ai_calculate(self):
         board_me = deepcopy(self.board)
 
@@ -279,9 +306,8 @@ class TetrisApp(object):
                 continue
             else:
                 y_now = y - 1
-        board_me = join_matrixes(board_me, self.stone,(x, y))
-        self.score_calculation(board_me)
-
+        board_me = join_matrixes(board_me, self.stone, (x, y))
+        score_calculation(board_me)
 
     def run(self):
         global ai
@@ -320,8 +346,7 @@ Press space to continue""")
                     self.disp_msg("Lines: %d" % (self.lines),
                                   (self.rlim + cell_size, cell_size * 5))
                     if ai:
-                        # self.ai_calculate(self.stone, self.board)
-                        print(self.score_calculation(self.board))
+                        print(score_calculation(self.board))
 
                     self.draw_matrix(self.bground_grid, (0, 0))
                     self.draw_matrix(self.board, (0, 0))
