@@ -1,7 +1,9 @@
+import random
 from copy import deepcopy
 from random import randrange as rand
-import pygame, sys
-import random
+
+import pygame
+import sys
 
 # The configuration
 cell_size = 30
@@ -96,24 +98,39 @@ def score_calculation(board):
     bumpiness_sum = 0
     clear_sum = 0
 
-    # Height_sum
+    # Height_sum & Bumpiness_sum
+    flag = True
+    height_previous = 0
     for j in range(len(board[0])):
-        height_col = 22
+        height_col = len(board) - 1
         for i in range(len(board)):
             if board[i][j] == 0:
                 height_col -= 1
             else:
                 break
+        if not flag:
+            bumpiness_sum += abs(height_col - height_previous)
+        height_previous = height_col
         height_sum += height_col
+        if flag:
+            flag = False
 
     # Hole_sum
-
-    # Bumpiness_sum
+    for j in range(len(board[0])):
+        hole_col = 0
+        top_flag = False
+        for i in range(len(board)):
+            if board[i][j] == 0:
+                if top_flag:
+                    hole_col += 1
+            else:
+                top_flag = True
+        hole_sum += hole_col
 
     # Clear_sum
-    for j in range(len(board[0])):
+    for i in range(len(board)):
         c_flag = True
-        for i in range (len(board)):
+        for j in range(len(board[0])):
             if board[i][j] != 0:
                 continue
             else:
@@ -126,7 +143,7 @@ def score_calculation(board):
     coeff = [-0.510066, 0.760666, -0.35665, -0.184483]
 
     score = coeff[0] * height_sum + coeff[1] * clear_sum + coeff[2] * hole_sum + coeff[3] * bumpiness_sum
-
+    print(height_sum, clear_sum, hole_sum, bumpiness_sum, score)
     return score
 
 
@@ -259,6 +276,9 @@ class TetrisApp(object):
                     self.stone,
                     (self.stone_x, self.stone_y))
                 self.new_stone()
+                global ai
+                ai = True
+
                 cleared_rows = 0
                 while True:
                     for i, row in enumerate(self.board[:-1]):
@@ -297,17 +317,34 @@ class TetrisApp(object):
             self.gameover = False
 
     def ai_calculate(self):
+        choice = {}
         board_me = deepcopy(self.board)
+        stone_me = deepcopy(self.stone)
+        y_now = 0
+        for r in range(4):
+            for x in range(len(board_me[0])):
+                if check_collision(board_me, stone_me, (x, 0)):
+                    break
 
-        x = 0
-        y_start = self.stone_y
-        for y in range(y_start, len(self.board)):
-            if not check_collision(board_me, self.stone, (x, y)):
-                continue
-            else:
-                y_now = y - 1
-        board_me = join_matrixes(board_me, self.stone, (x, y))
-        score_calculation(board_me)
+                y = 0
+                while not check_collision(board_me, stone_me, (x, y)):
+                    y += 1
+
+                board_temp = join_matrixes(deepcopy(board_me), stone_me, (x, y))
+                actionlist = str(r) + '|' + str(x) + '|' + str(y_now)
+                choice[actionlist] = score_calculation(board_temp)
+                for l in board_temp:
+                    print(l)
+                print("----------------", score_calculation(board_temp))
+            stone_me = rotate_clockwise(stone_me)
+
+        sorted_x = sorted(choice.items(), key=lambda kv: kv[1], reverse=True)
+        print(sorted_x)
+        instruction = sorted_x[0][0].split('|')
+        for i in range(int(instruction[0])):
+            self.rotate_stone()
+        self.stone_x = int(instruction[1])
+        return
 
     def run(self):
         global ai
@@ -335,7 +372,7 @@ Press space to continue""")
                 if self.paused:
                     self.center_msg("Paused")
                 else:
-
+                    self.drop(True)
                     pygame.draw.line(self.screen,
                                      (255, 255, 255),
                                      (self.rlim + 1, 0),
@@ -345,8 +382,10 @@ Press space to continue""")
                         2))
                     self.disp_msg("Lines: %d" % (self.lines),
                                   (self.rlim + cell_size, cell_size * 5))
+
                     if ai:
-                        print(score_calculation(self.board))
+                        self.ai_calculate()
+                        ai = False
 
                     self.draw_matrix(self.bground_grid, (0, 0))
                     self.draw_matrix(self.board, (0, 0))
